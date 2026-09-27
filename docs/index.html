@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Für Doro — Kennlernbögen</title>
+  <meta name="description" content="Zehn Kennlernbögen zum Geburtstag: ausgefüllt ergeben die nummerierten Wörter eine Laudatio für Doro.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #111;
+      --paper: #fff;
+      --muted: #444;
+      --line: rgba(0, 0, 0, 0.55);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: "Playfair Display", Georgia, "Times New Roman", serif;
+      line-height: 1.5;
+    }
+
+    .page {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 3rem;
+      position: relative;
+    }
+
+    .arch {
+      border: 1.5px solid var(--ink);
+      border-bottom: none;
+      border-radius: 360px 360px 0 0;
+      padding: 2.75rem 1.75rem 2rem;
+      position: relative;
+      background: var(--paper);
+    }
+
+    .arch::before {
+      content: "";
+      position: absolute;
+      inset: 10px 10px auto 10px;
+      height: calc(100% - 10px);
+      border: 0.5px solid var(--line);
+      border-bottom: none;
+      border-radius: 350px 350px 0 0;
+      pointer-events: none;
+    }
+
+    .leaf {
+      position: absolute;
+      width: 72px;
+      height: 72px;
+      opacity: 0.95;
+    }
+
+    .leaf-tl { top: 0.4rem; left: 0.2rem; transform: rotate(-8deg); }
+    .leaf-br { bottom: 0.2rem; right: 0.2rem; transform: rotate(165deg); }
+
+    .script {
+      font-family: "Great Vibes", cursive;
+      font-size: clamp(2rem, 6vw, 2.6rem);
+      text-align: center;
+      margin: 0 0 0.35rem;
+      font-weight: 400;
+    }
+
+    .title {
+      text-align: center;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      font-size: clamp(1.85rem, 7vw, 2.35rem);
+      margin: 0;
+      line-height: 1.15;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-style: italic;
+      font-size: 0.95rem;
+      margin: 0.85rem 0 0;
+      color: var(--muted);
+    }
+
+    .date {
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.05rem;
+      margin: 1.35rem 0 0;
+    }
+
+    .rule {
+      width: 5.5rem;
+      height: 1px;
+      background: var(--ink);
+      margin: 0.85rem auto 0;
+      opacity: 0.7;
+    }
+
+    .intro {
+      margin-top: 1.75rem;
+      font-size: 0.98rem;
+      color: var(--muted);
+    }
+
+    .intro p { margin: 0 0 0.85rem; }
+
+    .quote {
+      margin: 1.25rem 0 0;
+      padding-left: 1rem;
+      border-left: 3px solid var(--ink);
+      font-size: 0.95rem;
+      color: var(--ink);
+    }
+
+    section {
+      margin-top: 2.25rem;
+    }
+
+    h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin: 0 0 1rem;
+    }
+
+    .cards {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .card {
+      display: block;
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--ink);
+      border-radius: 2px;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.15s ease;
+    }
+
+    .card:hover,
+    .card:focus-visible {
+      background: #f7f7f7;
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+
+    .card strong {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .card span {
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .card-primary {
+      border-width: 1.5px;
+      background: #fafafa;
+    }
+
+    .warn {
+      margin-top: 1.5rem;
+      padding: 0.85rem 1rem;
+      border: 1px dashed var(--ink);
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .warn strong { color: var(--ink); }
+
+    .grid-boegen {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+
+    .grid-boegen a {
+      text-align: center;
+      padding: 0.55rem 0.4rem;
+      border: 1px solid var(--line);
+      text-decoration: none;
+      color: inherit;
+      font-size: 0.88rem;
+    }
+
+    .grid-boegen a:hover { border-color: var(--ink); background: #f7f7f7; }
+
+    footer {
+      margin-top: 2.5rem;
+      text-align: center;
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    footer .sign {
+      font-family: "Great Vibes", cursive;
+      font-size: 1.75rem;
+      color: var(--ink);
+      display: block;
+      margin-bottom: 0.35rem;
+    }
+
+    @media print {
+      .leaf { display: none; }
+      .card:hover { background: transparent; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <svg class="leaf leaf-tl" viewBox="0 0 80 80" aria-hidden="true">
+      <path d="M8 72 C8 40 18 18 42 8" fill="none" stroke="#111" stroke-width="1.2" stroke-linecap="round"/>
+      <ellipse cx="22" cy="52" rx="9" ry="4" transform="rotate(-55 22 52)" fill="#fff" stroke="#111" stroke-width="0.9"/>
+      <ellipse cx="30" cy="38" rx="10" ry="4.2" transform="rotate(-35 30 38)" fill="#fff" stroke="#111" stroke-width="0.9"/>
+      <ellipse cx="38" cy="24" rx="9" ry="3.8" transform="rotate(-18 38 24)" fill="#fff" stroke="#111" stroke-width="0.9"/>
+    </svg>
+    <svg class="leaf leaf-br" viewBox="0 0 80 80" aria-hidden="true">
+      <path d="M72 8 C72 40 62 62 38 72" fill="none" stroke="#111" stroke-width="1.2" stroke-linecap="round"/>
+      <ellipse cx="58" cy="28" rx="9" ry="4" transform="rotate(125 58 28)" fill="#fff" stroke="#111" stroke-width="0.9"/>
+      <ellipse cx="50" cy="42" rx="10" ry="4.2" transform="rotate(145 50 42)" fill="#fff" stroke="#111" stroke-width="0.9"/>
+      <ellipse cx="42" cy="56" rx="9" ry="3.8" transform="rotate(162 42 56)" fill="#fff" stroke="#111" stroke-width="0.9"/>
+    </svg>
+
+    <header class="arch">
+      <p class="script">Zum Geburtstag</p>
+      <h1 class="title">FÜR DORO</h1>
+      <p class="subtitle">Kennlernbögen zum Ausdrucken</p>
+      <div class="rule" role="presentation"></div>
+      <p class="date">03. Oktober 2026</p>
+    </header>
+
+    <div class="intro">
+      <p>
+        Zehn Gäste, zehn Bögen: Jede Person beantwortet fünf Fragen und schreibt
+        den Satz um ein vorgedrucktes Wort herum. Liest man danach nur die
+        nummerierten Wörter von&nbsp;1 bis&nbsp;50, entsteht eine Laudatio.
+      </p>
+      <blockquote class="quote">
+        Doro, du bist ein Licht. Dein Lachen öffnet die Herzen. Deine Wärme
+        schenkt Geborgenheit. Unsere Freundschaft trägt uns durch helle und durch
+        schwere Tage. Du hörst zu, ohne zu urteilen. Du feierst das Leben und
+        bleibst dir treu. Danke für deinen Mut und dein Leuchten. Heute feiern
+        wir dich, Doro.
+      </blockquote>
+    </div>
+
+    <section aria-labelledby="downloads">
+      <h2 id="downloads">PDFs herunterladen</h2>
+      <div class="cards">
+        <a class="card card-primary" href="pdf/alle-boegen.pdf">
+          <strong>Alle zehn Bögen (eine Datei)</strong>
+          <span>Zum Drucken: schwarz-weiß, A4, „tatsächliche Größe“</span>
+        </a>
+        <a class="card" href="pdf/moderation-nicht-auslegen.pdf">
+          <strong>Moderation — nicht auslegen</strong>
+          <span>Ablauf, Laudatio und Zuordnung der Wörter</span>
+        </a>
+      </div>
+
+      <div class="grid-boegen" aria-label="Einzelne Bögen">
+        <a href="pdf/bogen-01.pdf">Bogen 1</a>
+        <a href="pdf/bogen-02.pdf">Bogen 2</a>
+        <a href="pdf/bogen-03.pdf">Bogen 3</a>
+        <a href="pdf/bogen-04.pdf">Bogen 4</a>
+        <a href="pdf/bogen-05.pdf">Bogen 5</a>
+        <a href="pdf/bogen-06.pdf">Bogen 6</a>
+        <a href="pdf/bogen-07.pdf">Bogen 7</a>
+        <a href="pdf/bogen-08.pdf">Bogen 8</a>
+        <a href="pdf/bogen-09.pdf">Bogen 9</a>
+        <a href="pdf/bogen-10.pdf">Bogen 10</a>
+      </div>
+
+      <p class="warn">
+        <strong>Hinweis:</strong> Das Moderationsblatt nicht mit auf den Tisch legen —
+        sonst ist die Überraschung beim Vorlesen der Laudatio weg.
+      </p>
+    </section>
+
+    <footer>
+      <span class="sign">Doro</span>
+      <span>Generiert mit <code>generate_boegen.py</code></span>
+    </footer>
+  </div>
+</body>
+</html>
