@@ -1,0 +1,9 @@
+Liebe Doro, heute feiern wir dich! Es ist wunderbar, dass es dich gibt. Du bist nicht nur eine tolle Mama, sondern auch eine großartige Freundin. Wir schätzen deine ehrliche, wertschätzende, liebevolle und großzügige Art. Dein Humor ist weltklasse, denn mit dir hat man immer was zu Lachen. Wir lieben dich!
+
+
+
+1. Da bin ich Doro das erste Mal begegnet...
+2. Mein schönstes/lustigstes/... Erlebnis mit Doro...
+3. Diese Eigenschaft schätze ich an Doro..
+4. Dieses Essen oder Getränk verbinde ich mit Doro...
+5. Welches Tier passt am besten zu ihrem Charakter?

@@ -1,27 +1,28 @@
 #!/usr/bin/env python3
-"""Kennlernbögen für Doros Geburtstag.
+"""Kennlernbögen für ein Geburtstagskind.
 
 Jede Person bekommt einen eigenen Bogen mit fünf Fragen. In jeder Antwort
 ist bereits ein Wort vorgedruckt. Der eigene Satz wird links und rechts
-darum herum geschrieben. Liest man danach nur die nummerierten Wörter
-von 1 bis 50, ergibt sich eine Laudatio.
+darum herum geschrieben. Liest man danach nur diese Wörter
+in der Runde, ergibt sich eine Laudatio.
 
 Die Wörterliste unten ist die einzige Quelle. Es müssen genau
-10 Bögen × 5 Fragen = 50 Wörter sein, in der Vorlesereihenfolge.
+SHEET_COUNT × 5 Fragen Wörter sein, in der Vorlesereihenfolge.
+Die Wörter werden round-robin auf die Bögen verteilt: Wort 1 auf Bogen 1,
+Wort 2 auf Bogen 2, …, Wort 11 wieder auf Bogen 1.
 Satzzeichen gehören zum Wort, damit beim Vorlesen Punkt und Komma sitzen.
 
 Aufruf:
     python3 generate_boegen.py
 
 Erzeugt im Ordner pdf/:
-    bogen-01.pdf … bogen-10.pdf   (die Bögen zum Auslegen)
-    alle-boegen.pdf               (dieselben zehn Bögen in einer Datei)
+    bogen-01.pdf …               (die Bögen zum Auslegen)
+    alle-boegen.pdf               (dieselben Bögen in einer Datei)
     moderation-nicht-auslegen.pdf (Ablauf und Lösung, nur für die Moderation)
 """
 
 from __future__ import annotations
 
-import math
 import sys
 from pathlib import Path
 
@@ -34,47 +35,43 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
 from reportlab.platypus import Paragraph, Table, TableStyle
 
-# Fließender Text, 50 Wörter. Vorgelesen von 1 bis 50:
-# Doro, du bist ein Licht. Dein Lachen öffnet die Herzen. Deine Wärme
-# schenkt Geborgenheit. Unsere Freundschaft trägt uns durch helle und
-# durch schwere Tage. Du hörst zu, ohne zu urteilen. Du feierst das Leben
-# und bleibst dir treu. Danke für deinen Mut und dein Leuchten. Heute
-# feiern wir dich, Doro.
+NAME = "Doro"
+
+# Fließender Text aus input-default.md. Vorgelesen von 1 bis N (SHEET_COUNT × 5):
 WORDS = [
-    "Doro,", "du", "bist", "ein", "Licht.",
-    "Dein", "Lachen", "öffnet", "die", "Herzen.",
-    "Deine", "Wärme", "schenkt", "Geborgenheit.", "Unsere",
-    "Freundschaft", "trägt", "uns", "durch", "helle",
-    "und", "durch", "schwere", "Tage.", "Du",
-    "hörst", "zu,", "ohne", "zu", "urteilen.",
-    "Du", "feierst", "das", "Leben", "und",
-    "bleibst", "dir", "treu.", "Danke", "für",
-    "deinen", "Mut", "und", "dein", "Leuchten.",
-    "Heute", "feiern", "wir", "dich,", "Doro.",
+    "Liebe", "Doro,", "heute", "feiern", "wir",
+    "dich!", "Es", "ist", "wunderbar,", "dass",
+    "es", "dich", "gibt.", "Du", "bist",
+    "nicht", "nur", "eine", "tolle", "Mama,",
+    "sondern", "auch", "eine", "großartige", "Freundin.",
+    "Wir", "schätzen", "deine", "ehrliche,", "wertschätzende,",
+    "liebevolle", "und", "großzügige", "Art.", "Dein",
+    "Humor", "ist", "weltklasse,", "denn", "mit",
+    "dir", "hat", "man", "immer", "was",
+    "zu", "Lachen.", "Wir", "lieben", "dich!",
 ]
 
 QUESTIONS = [
-    "Da bin ich Doro zum ersten Mal begegnet",
-    "So lange kenne ich Doro schon",
-    "Mein schönstes Erlebnis mit Doro",
-    "Das liebe ich an Doro",
-    "Welches Essen oder Trinken verbinde ich mit ihr",
+    "Da bin ich Doro das erste Mal begegnet",
+    "Mein schönstes/lustigstes/... Erlebnis mit Doro",
+    "Diese Eigenschaft schätze ich an Doro",
+    "Dieses Essen oder Getränk verbinde ich mit Doro",
+    "Welches Tier passt am besten zu ihrem Charakter?",
 ]
 
 # Anteil der Schreibzeile, an dem das Wort sitzt.
 # Bewusst verschieden, damit mal davor und mal dahinter mehr Platz ist.
-ANCHORS = [0.40, 0.62, 0.34, 0.55, 0.46]
+ANCHORS = [0.48, 0.52, 0.45, 0.55, 0.50]
 
 QUESTION_SHORT = [
     "Begegnung",
-    "Wie lange",
     "Erlebnis",
-    "Das liebe ich",
-    "Essen, Trinken",
+    "Eigenschaft",
+    "Essen, Getränk",
+    "Tier",
 ]
 
 SHEET_COUNT = 10
-PARTY_DATE = "03. Oktober 2026"
 
 def _first_existing(candidates: list[Path]) -> Path:
     for path in candidates:
@@ -86,14 +83,15 @@ def _first_existing(candidates: list[Path]) -> Path:
 PAGE_W, PAGE_H = A4
 MM = 72 / 25.4
 
-INSTRUCTION = (
-    "Trag deinen Namen ein und beantworte die fünf Fragen von Hand. "
-    "In jeder Antwort steht schon ein Wort. Schreib links und rechts davon weiter; "
-    "das Wort bleibt mitsamt Satzzeichen stehen. "
-    "Beispiel: Aus „Sommer“ wird „an einem warmen Sommer am See“. "
-    "Die Zahl ist die Vorlesereihenfolge. Liest man die Wörter von 1 bis 50, "
-    "ergibt das eine Laudatio für Doro. Bitte vorher nicht verraten."
-)
+def instruction_text() -> str:
+    return (
+        "Beantworte die fünf Fragen von Hand. "
+        "In jeder Antwort steht schon ein Wort. Schreib links und rechts davon weiter; "
+        "das Wort bleibt mitsamt Satzzeichen stehen. "
+        "Beispiel: Aus „Sommer“ wird „an einem warmen Sommer am See“. "
+        f"Die vorgedruckten Wörter ergeben zusammen eine Laudatio für {NAME}. "
+        "Bitte vorher nicht verraten."
+    )
 
 
 def laudatio_text() -> str:
@@ -101,6 +99,12 @@ def laudatio_text() -> str:
 
 
 def sheets() -> list[list[tuple[int, str]]]:
+    """Wörter round-robin auf die Bögen verteilen.
+
+    Wort 1 → Bogen 1, Wort 2 → Bogen 2, …, Wort 10 → Bogen 10,
+    Wort 11 → wieder Bogen 1. Jeder Bogen erhält fünf Wörter mit den
+    Nummern sheet, sheet+SHEET_COUNT, sheet+2·SHEET_COUNT, …
+    """
     expected = SHEET_COUNT * len(QUESTIONS)
     if len(WORDS) != expected:
         raise SystemExit(
@@ -113,7 +117,7 @@ def sheets() -> list[list[tuple[int, str]]]:
     for sheet in range(SHEET_COUNT):
         chunk = []
         for question in range(len(QUESTIONS)):
-            index = sheet * len(QUESTIONS) + question
+            index = sheet + question * SHEET_COUNT
             chunk.append((index + 1, WORDS[index]))
         built.append(chunk)
     return built
@@ -124,21 +128,25 @@ def register_fonts() -> None:
     files = {
         "Sans": _first_existing([
             Path("/usr/share/fonts/truetype/macos/Inter-Regular.ttf"),
+            Path("/usr/share/fonts/liberation/LiberationSans-Regular.ttf"),
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
             Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
         ]),
         "Sans-Bold": _first_existing([
             Path("/usr/share/fonts/truetype/macos/Inter-Bold.ttf"),
+            Path("/usr/share/fonts/liberation/LiberationSans-Bold.ttf"),
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"),
             Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
         ]),
         "Sans-Italic": _first_existing([
             Path("/usr/share/fonts/truetype/macos/Inter-Italic.ttf"),
+            Path("/usr/share/fonts/liberation/LiberationSans-Italic.ttf"),
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-Italic.ttf"),
             Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
         ]),
         "Sans-BoldItalic": _first_existing([
             Path("/usr/share/fonts/truetype/macos/Inter-BoldItalic.ttf"),
+            Path("/usr/share/fonts/liberation/LiberationSans-BoldItalic.ttf"),
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf"),
             Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
         ]),
@@ -192,23 +200,20 @@ def vertical_metrics(font: str, size: float) -> tuple[float, float]:
     return face.ascent * size / 1000, face.descent * size / 1000
 
 
-def chip_size(number: int, word: str) -> tuple[float, float, float, float, float]:
-    """Width, height, number width, word width, word size."""
+def chip_size(word: str) -> tuple[float, float, float]:
+    """Width, height, word size."""
     word_size = 12
-    num_size = 8
     word_w = pdfmetrics.stringWidth(word, "Serif-Bold", word_size)
-    num_w = pdfmetrics.stringWidth(f"({number})", "Sans-Bold", num_size)
     pad_x = 5.5
-    gap = 3.5
     ascent, descent = vertical_metrics("Serif-Bold", word_size)
     pad_y = 3.2
-    width = pad_x + num_w + gap + word_w + pad_x
+    width = pad_x + word_w + pad_x
     height = pad_y + (ascent - descent) + pad_y
-    return width, height, num_w, word_w, word_size
+    return width, height, word_size
 
 
-def chip_center(left: float, right: float, number: int, word: str, frac: float) -> float:
-    width, _height, _nw, _ww, _ws = chip_size(number, word)
+def chip_center(left: float, right: float, word: str, frac: float) -> float:
+    width, _height, _word_size = chip_size(word)
     min_side = mm(14)
     half = width / 2
     cx = left + (right - left) * frac
@@ -219,12 +224,12 @@ def chip_center(left: float, right: float, number: int, word: str, frac: float) 
     return max(low, min(high, cx))
 
 
-def draw_chip(c: canvas.Canvas, cx: float, cy: float, number: int, word: str) -> tuple[float, float, float, float]:
-    """Label centered on (cx, cy). Returns (left, bottom, right, top)."""
-    width, height, num_w, _word_w, word_size = chip_size(number, word)
-    num_size = 8
+def draw_chip(c: canvas.Canvas, cx: float, cy: float, word: str) -> tuple[float, float, float, float]:
+    """Word centered on (cx, cy). Returns (left, bottom, right, top)."""
+    width, height, word_size = chip_size(word)
     left = cx - width / 2
     bottom = cy - height / 2
+    pad_x = 5.5
     c.saveState()
     c.setStrokeColor(colors.black)
     c.setFillColor(colors.white)
@@ -232,15 +237,9 @@ def draw_chip(c: canvas.Canvas, cx: float, cy: float, number: int, word: str) ->
     c.roundRect(left, bottom, width, height, 2.5, stroke=1, fill=1)
     ascent, descent = vertical_metrics("Serif-Bold", word_size)
     word_baseline = cy - (ascent + descent) / 2
-    num_ascent, num_descent = vertical_metrics("Sans-Bold", num_size)
-    num_baseline = cy - (num_ascent + num_descent) / 2
-    pad_x = 5.5
-    gap = 3.5
     c.setFillColor(colors.black)
-    c.setFont("Sans-Bold", num_size)
-    c.drawString(left + pad_x, num_baseline, f"({number})")
     c.setFont("Serif-Bold", word_size)
-    c.drawString(left + pad_x + num_w + gap, word_baseline, word)
+    c.drawString(left + pad_x, word_baseline, word)
     c.restoreState()
     return left, bottom, left + width, bottom + height
 
@@ -292,7 +291,9 @@ def draw_arch(c: canvas.Canvas, box: dict[str, float], inset: float = 0, weight:
     path = c.beginPath()
     path.moveTo(x, base)
     path.lineTo(x, spring)
-    path.arc(x, spring - radius, x + width, spring + radius, 180, -180)
+    # arc() would moveTo the curve and break the path; the close then
+    # cuts a diagonal from the bottom corner back to the springing point.
+    path.arcTo(x, spring - radius, x + width, spring + radius, 180, -180)
     path.lineTo(x + width, base)
     path.close()
     c.saveState()
@@ -305,108 +306,14 @@ def draw_arch(c: canvas.Canvas, box: dict[str, float], inset: float = 0, weight:
     c.restoreState()
 
 
-def draw_leaf(c: canvas.Canvas, x: float, y: float, angle: float, length: float, width: float) -> None:
-    """Slender outlined leaf. Angle is degrees, 0 points right, 90 points up."""
-    theta = math.radians(angle)
-    ca, sa = math.cos(theta), math.sin(theta)
-
-    def rot(along: float, across: float) -> tuple[float, float]:
-        return (x + along * ca - across * sa, y + along * sa + across * ca)
-
-    tip = rot(length, 0)
-    upper_a = rot(length * 0.30, width)
-    upper_b = rot(length * 0.74, width * 0.48)
-    lower_a = rot(length * 0.72, -width * 0.40)
-    lower_b = rot(length * 0.24, -width * 0.82)
-    path = c.beginPath()
-    path.moveTo(x, y)
-    path.curveTo(*upper_a, *upper_b, *tip)
-    path.curveTo(*lower_a, *lower_b, x, y)
-    c.saveState()
-    c.setStrokeColor(colors.black)
-    c.setFillColor(colors.white)
-    c.setLineWidth(0.75)
-    c.setLineJoin(1)
-    c.setLineCap(1)
-    c.drawPath(path, stroke=1, fill=1)
-    vein = rot(length * 0.9, 0)
-    c.setLineWidth(0.32)
-    c.line(x, y, *vein)
-    c.restoreState()
-
-
-def draw_stem(c: canvas.Canvas, points: list[tuple[float, float]]) -> None:
-    path = c.beginPath()
-    path.moveTo(*points[0])
-    for index in range(1, len(points)):
-        x0, y0 = points[index - 1]
-        x1, y1 = points[index]
-        path.curveTo(
-            x0 + (x1 - x0) * 0.45, y0 + (y1 - y0) * 0.05,
-            x1 - (x1 - x0) * 0.45, y1 - (y1 - y0) * 0.05,
-            x1, y1,
-        )
-    c.saveState()
-    c.setStrokeColor(colors.black)
-    c.setLineWidth(0.8)
-    c.setLineCap(1)
-    c.drawPath(path, stroke=1, fill=0)
-    c.restoreState()
-
-
-def from_top_mm(x_mm: float, y_mm: float) -> tuple[float, float]:
-    return mm(x_mm), PAGE_H - mm(y_mm)
-
-
-def draw_foliage(c: canvas.Canvas) -> None:
-    """Olive sprigs in the corners, in the same places as on the invitation."""
-    top_stem = [
-        from_top_mm(0.5, 3),
-        from_top_mm(9, 14),
-        from_top_mm(16, 28),
-        from_top_mm(10, 42),
-        from_top_mm(17, 54),
-    ]
-    top_leaves = [
-        # x, y from top, angle, length mm, width mm
-        (6, 9, -62, 16, 2.8),
-        (13, 18, 22, 14, 2.5),
-        (15, 28, -28, 16, 2.9),
-        (8, 38, -78, 15, 2.7),
-        (14, 48, -8, 13, 2.4),
-    ]
-    draw_stem(c, top_stem)
-    for leaf in top_leaves:
-        x, y, angle, length, width = leaf
-        px, py = from_top_mm(x, y)
-        draw_leaf(c, px, py, angle, mm(length), mm(width))
-
-    bottom_stem = [
-        (mm(209.5), mm(1.5)),
-        (mm(200), mm(10)),
-        (mm(193), mm(18)),
-        (mm(199), mm(26)),
-    ]
-    bottom_leaves = [
-        (204, 6, 125, 14, 2.6),
-        (197, 12, 58, 13, 2.4),
-        (191, 18, 145, 14, 2.6),
-        (200, 22, 95, 11, 2.2),
-    ]
-    draw_stem(c, bottom_stem)
-    for x, y, angle, length, width in bottom_leaves:
-        draw_leaf(c, mm(x), mm(y), angle, mm(length), mm(width))
-
-
 def make_sheet(path: Path, sheet_index: int, entries: list[tuple[int, str]]) -> None:
     c = canvas.Canvas(str(path), pagesize=A4)
-    c.setTitle(f"Für Doro — Kennlernbogen {sheet_index + 1}")
-    c.setAuthor("Geburtstagsspiel für Doro")
+    c.setTitle(f"Für {NAME} — Kennlernbogen {sheet_index + 1}")
+    c.setAuthor(f"Geburtstagsspiel für {NAME}")
 
     box = arch_box()
     draw_arch(c, box, inset=0, weight=1.2)
     draw_arch(c, box, inset=mm(2.3), weight=0.45)
-    draw_foliage(c)
 
     inset = mm(9)
     left = box["x"] + inset
@@ -418,18 +325,15 @@ def make_sheet(path: Path, sheet_index: int, entries: list[tuple[int, str]]) -> 
     c.setFont("Script", 30)
     c.drawCentredString(center, from_top(28), "Zum Geburtstag")
 
-    draw_tracked(c, "FÜR DORO", center, from_top(52), "Display", 32, 1.15)
+    draw_tracked(c, f"FÜR {NAME.upper()}", center, from_top(52), "Display", 32, 1.15)
 
     c.setFont("Serif-Italic", 10)
     c.drawCentredString(center, from_top(62.5), "Ein Bogen zum Kennenlernen")
 
-    c.setFont("Display", 15)
-    c.drawCentredString(center, from_top(74), PARTY_DATE)
-
     c.setStrokeColor(colors.black)
     c.setLineWidth(0.5)
     rule = mm(18)
-    c.line(center - rule, from_top(79.2), center + rule, from_top(79.2))
+    c.line(center - rule, from_top(68), center + rule, from_top(68))
 
     style = ParagraphStyle(
         "instr",
@@ -439,26 +343,18 @@ def make_sheet(path: Path, sheet_index: int, entries: list[tuple[int, str]]) -> 
         textColor=colors.black,
         alignment=TA_CENTER,
     )
-    paragraph = Paragraph(INSTRUCTION, style)
+    paragraph = Paragraph(instruction_text(), style)
     _instr_w, instr_h = paragraph.wrap(width - mm(4), 240)
-    instr_top = from_top(84)
+    instr_top = from_top(74)
     paragraph.drawOn(c, left + mm(2), instr_top - instr_h)
 
-    name_y = instr_top - instr_h - mm(8)
-    c.setFillColor(colors.black)
-    c.setFont("Serif-Italic", 11)
-    label = "Ich heiße"
-    c.drawString(left, name_y, label)
-    label_w = c.stringWidth(label, "Serif-Italic", 11)
-    draw_line(c, left + label_w + 8, right, name_y - 1.2)
-
     footer_y = box["base"] + mm(6.5)
-    block_top = name_y - mm(6)
+    block_top = instr_top - instr_h - mm(8)
     # Room for the script signature above the footer line.
     block_bottom = footer_y + mm(15)
     section_h = (block_top - block_bottom) / len(QUESTIONS)
 
-    for q, (question, (number, word)) in enumerate(zip(QUESTIONS, entries)):
+    for q, (question, (_number, word)) in enumerate(zip(QUESTIONS, entries)):
         sec_top = block_top - q * section_h
         sec_bottom = sec_top - section_h
         if q > 0:
@@ -483,20 +379,19 @@ def make_sheet(path: Path, sheet_index: int, entries: list[tuple[int, str]]) -> 
         line_top = q_baseline - mm(8.2)
         line_bottom = sec_bottom + mm(4.2)
         baselines = [line_top, line_bottom]
-        cx = chip_center(left, right, number, word, ANCHORS[q])
-        bounds = draw_chip(c, cx, baselines[0], number, word)
+        cx = chip_center(left, right, word, ANCHORS[q])
+        bounds = draw_chip(c, cx, baselines[0], word)
         draw_line(c, left, right, baselines[0], bounds)
         draw_line(c, left, right, baselines[1])
 
     c.setFillColor(colors.black)
-    first, last = entries[0][0], entries[-1][0]
     c.setFont("Script", 15)
-    c.drawCentredString(center, footer_y + mm(8), "Doro")
+    c.drawCentredString(center, footer_y + mm(8), NAME)
     c.setFont("Serif", 8)
     c.drawCentredString(
         center,
         footer_y,
-        f"Bogen {sheet_index + 1} von {SHEET_COUNT}    ·    Wörter {first}–{last}",
+        f"Bogen {sheet_index + 1} von {SHEET_COUNT}",
     )
 
     c.showPage()
@@ -505,8 +400,8 @@ def make_sheet(path: Path, sheet_index: int, entries: list[tuple[int, str]]) -> 
 
 def make_moderation(path: Path) -> None:
     c = canvas.Canvas(str(path), pagesize=A4)
-    c.setTitle("Für Doro — Moderation, nicht auslegen")
-    c.setAuthor("Geburtstagsspiel für Doro")
+    c.setTitle(f"Für {NAME} — Moderation, nicht auslegen")
+    c.setAuthor(f"Geburtstagsspiel für {NAME}")
 
     left = mm(16)
     right = PAGE_W - mm(16)
@@ -535,39 +430,36 @@ def make_moderation(path: Path) -> None:
         alignment=TA_LEFT, textColor=colors.black,
     )
 
-    for leaf in (
-        (8, 10, -40, 14, 2.5),
-        (14, 18, 20, 12, 2.2),
-        (6, 22, -75, 13, 2.3),
-    ):
-        px, py = from_top_mm(leaf[0], leaf[1])
-        draw_leaf(c, px, py, leaf[2], mm(leaf[3]), mm(leaf[4]))
-    for leaf_x, leaf_y, angle, length, leaf_w in (
-        (200, 8, 115, 13, 2.4),
-        (190, 14, 50, 12, 2.2),
-        (196, 20, 150, 11, 2.1),
-    ):
-        draw_leaf(c, mm(leaf_x), mm(leaf_y), angle, mm(length), mm(leaf_w))
-
     c.setFillColor(colors.black)
     c.setFont("Script", 20)
     c.drawCentredString(center, from_top(16), "Nicht auslegen")
-    draw_tracked(c, "FÜR DORO", center, from_top(28), "Display", 22, 0.9)
+    draw_tracked(c, f"FÜR {NAME.upper()}", center, from_top(28), "Display", 22, 0.9)
     y = from_top(32)
+    total = len(WORDS)
 
     flow = [
         Paragraph("Moderationsblatt zur Laudatio", sub),
         Paragraph("So spielt ihr", head),
-        Paragraph("<b>1</b>  Die zehn Bögen verdeckt auslegen. Jede Person nimmt einen. Dieses Blatt bleibt bei dir.", step),
-        Paragraph("<b>2</b>  Jede Person trägt ihren Namen ein und beantwortet die fünf Fragen. Das vorgedruckte Wort bleibt stehen, der eigene Satz legt sich links und rechts darum.", step),
+        Paragraph(
+            f"<b>1</b>  Die {SHEET_COUNT} Bögen verdeckt auslegen. Jede Person nimmt einen. "
+            "Dieses Blatt bleibt bei dir.",
+            step,
+        ),
+        Paragraph("<b>2</b>  Jede Person beantwortet die fünf Fragen. Das vorgedruckte Wort bleibt stehen, der eigene Satz legt sich links und rechts darum. Den eigenen Namen nicht auf den Bogen schreiben — der wird erraten.", step),
         Paragraph("<b>3</b>  Wer mag, liest die eigenen Antworten vor. So lernen sich alle kennen. Die festen Wörter machen die Sätze absichtlich etwas schief.", step),
-        Paragraph("<b>4</b>  Danach lest nur die nummerierten Wörter, von 1 bis 50. Du nennst die Zahl, wer sie auf dem Bogen hat, liest das Wort vor. An Punkt und Komma kurz innehalten.", step),
+        Paragraph(
+            "<b>4</b>  Danach lest nur die vorgedruckten Wörter. "
+            f"Zuerst Frage 1, von Bogen 1 bis Bogen {SHEET_COUNT}, dann Frage 2, und so weiter. "
+            "An Punkt und Komma kurz innehalten.",
+            step,
+        ),
         Paragraph("<b>5</b>  Lies zum Schluss den Text unten noch einmal in Ruhe als Ganzes vor.", step),
         Paragraph("Die Laudatio", head),
         Paragraph(laudatio_text(), quote),
         Paragraph(
-            "50 Wörter, zehn Bögen, auf jedem Bogen fünf Wörter in der richtigen Reihenfolge. "
-            "Bogen 1 trägt die Wörter 1 bis 5, Bogen 2 die Wörter 6 bis 10, und so weiter.",
+            f"{total} Wörter, {SHEET_COUNT} Bögen, auf jedem Bogen fünf Wörter. "
+            f"Wort 1 liegt auf Bogen 1, Wort 2 auf Bogen 2, …, Wort {SHEET_COUNT} auf Bogen {SHEET_COUNT}; "
+            f"Wort {SHEET_COUNT + 1} wieder auf Bogen 1, und so weiter.",
             note,
         ),
         Paragraph("Welches Wort auf welchem Bogen liegt", head),
@@ -644,7 +536,7 @@ def make_moderation(path: Path) -> None:
 
     c.setFont("Sans", 8)
     c.drawString(left, mm(10.5), "Moderation, nicht auslegen")
-    c.drawRightString(right, mm(10.5), "Für Doro")
+    c.drawRightString(right, mm(10.5), f"Für {NAME}")
     c.showPage()
     c.save()
 

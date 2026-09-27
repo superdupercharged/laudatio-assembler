@@ -1,4 +1,4 @@
-# GitHub Pages: Landingpage + frisch erzeugte PDFs bei jedem Push auf main.
+# GitHub Pages: interaktive Konfigurator-Site (PDF im Browser).
 # Einmalig im GitHub-Repo: Settings → Pages → Source: GitHub Actions.
 
 name: Deploy GitHub Pages
@@ -24,21 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Abhängigkeiten & PDFs
-        run: |
-          pip install -r requirements.txt
-          python3 generate_boegen.py
-
       - name: Site zusammenstellen
         run: |
-          mkdir -p _site/pdf
-          cp docs/index.html _site/index.html
-          cp pdf/*.pdf _site/pdf/
+          mkdir -p _site/fonts
+          cp docs/index.html docs/generate.js docs/.nojekyll _site/
+          cp docs/fonts/*.ttf _site/fonts/
 
       - name: GitHub Pages konfigurieren
         uses: actions/configure-pages@v5
