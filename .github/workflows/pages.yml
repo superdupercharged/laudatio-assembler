@@ -1,11 +1,12 @@
 # GitHub Pages: interaktive Konfigurator-Site (PDF im Browser).
+# Deployment-Branch ist gh-pages. Jeder Push dorthin baut _site und veröffentlicht sie.
 # Einmalig im GitHub-Repo: Settings → Pages → Source: GitHub Actions.
 
 name: Deploy GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [gh-pages]
   workflow_dispatch:
 
 permissions:

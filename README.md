@@ -3,6 +3,10 @@
 Interaktive Website (GitHub Pages): Anzahl Bögen, fünf Fragen, Laudatio-Text
 und Name einstellen, dann PDF im Browser erzeugen und herunterladen.
 
+Veröffentlicht wird die Branch `gh-pages`. Ein Push dorthin baut die Seite aus `docs/` und deployed sie:
+
+https://superdupercharged.github.io/laudatio-assembler/
+
 Lokal die Site ansehen:
 
 ```bash
