@@ -120,11 +120,13 @@ function chipCenter(left, right, fontSerifBold, word, frac) {
   return Math.max(low, Math.min(high, cx));
 }
 
-function drawChip(page, fonts, cx, cy, word) {
+function drawChip(page, fonts, cx, baselineY, word) {
+  // Word sits on the writing line: baselineY is the text baseline (= line).
   const { serifBold } = fonts;
   const s = chipSize(serifBold, word);
+  const padY = 3.2;
   const left = cx - s.width / 2;
-  const bottom = cy - s.height / 2;
+  const bottom = baselineY + s.descent - padY;
   page.drawRectangle({
     x: left,
     y: bottom,
@@ -134,10 +136,9 @@ function drawChip(page, fonts, cx, cy, word) {
     borderWidth: 0.9,
     color: WHITE,
   });
-  const wordBaseline = cy - (s.ascent + s.descent) / 2;
   page.drawText(word, {
     x: left + s.padX,
-    y: wordBaseline,
+    y: baselineY,
     size: s.wordSize,
     font: serifBold,
     color: BLACK,
@@ -277,7 +278,7 @@ function drawSheet(page, fonts, config, sheetIndex, entries) {
 
   const footerY = box.base + mm(6.5);
   const blockTop = instrY - mm(8);
-  const blockBottom = footerY + mm(15);
+  const blockBottom = footerY + mm(6);
   const sectionH = (blockTop - blockBottom) / questions.length;
 
   for (let q = 0; q < questions.length; q++) {
@@ -324,14 +325,6 @@ function drawSheet(page, fonts, config, sheetIndex, entries) {
     drawWritingLine(page, left, right, lineBottom, null);
   }
 
-  const sign = name.trim();
-  page.drawText(sign, {
-    x: center - fonts.script.widthOfTextAtSize(sign, 15) / 2,
-    y: footerY + mm(8),
-    size: 15,
-    font: fonts.script,
-    color: BLACK,
-  });
   const footer = `Bogen ${sheetIndex + 1} von ${sheetCount}`;
   page.drawText(footer, {
     x: center - fonts.serif.widthOfTextAtSize(footer, 8) / 2,

@@ -224,22 +224,25 @@ def chip_center(left: float, right: float, word: str, frac: float) -> float:
     return max(low, min(high, cx))
 
 
-def draw_chip(c: canvas.Canvas, cx: float, cy: float, word: str) -> tuple[float, float, float, float]:
-    """Word centered on (cx, cy). Returns (left, bottom, right, top)."""
+def draw_chip(c: canvas.Canvas, cx: float, baseline_y: float, word: str) -> tuple[float, float, float, float]:
+    """Word sitting on the writing line. baseline_y is the text baseline (= line).
+
+    Returns (left, bottom, right, top).
+    """
     width, height, word_size = chip_size(word)
-    left = cx - width / 2
-    bottom = cy - height / 2
     pad_x = 5.5
+    pad_y = 3.2
+    ascent, descent = vertical_metrics("Serif-Bold", word_size)
+    left = cx - width / 2
+    bottom = baseline_y + descent - pad_y
     c.saveState()
     c.setStrokeColor(colors.black)
     c.setFillColor(colors.white)
     c.setLineWidth(0.9)
     c.roundRect(left, bottom, width, height, 2.5, stroke=1, fill=1)
-    ascent, descent = vertical_metrics("Serif-Bold", word_size)
-    word_baseline = cy - (ascent + descent) / 2
     c.setFillColor(colors.black)
     c.setFont("Serif-Bold", word_size)
-    c.drawString(left + pad_x, word_baseline, word)
+    c.drawString(left + pad_x, baseline_y, word)
     c.restoreState()
     return left, bottom, left + width, bottom + height
 
@@ -350,8 +353,7 @@ def make_sheet(path: Path, sheet_index: int, entries: list[tuple[int, str]]) -> 
 
     footer_y = box["base"] + mm(6.5)
     block_top = instr_top - instr_h - mm(8)
-    # Room for the script signature above the footer line.
-    block_bottom = footer_y + mm(15)
+    block_bottom = footer_y + mm(6)
     section_h = (block_top - block_bottom) / len(QUESTIONS)
 
     for q, (question, (_number, word)) in enumerate(zip(QUESTIONS, entries)):
@@ -385,8 +387,6 @@ def make_sheet(path: Path, sheet_index: int, entries: list[tuple[int, str]]) -> 
         draw_line(c, left, right, baselines[1])
 
     c.setFillColor(colors.black)
-    c.setFont("Script", 15)
-    c.drawCentredString(center, footer_y + mm(8), NAME)
     c.setFont("Serif", 8)
     c.drawCentredString(
         center,
