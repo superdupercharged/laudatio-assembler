@@ -21,6 +21,7 @@ Erzeugt im Ordner pdf/:
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
@@ -73,6 +74,7 @@ QUESTION_SHORT = [
 ]
 
 SHEET_COUNT = 10
+PARTY_DATE = "03. Oktober 2026"
 
 def _first_existing(candidates: list[Path]) -> Path:
     for path in candidates:
@@ -118,6 +120,7 @@ def sheets() -> list[list[tuple[int, str]]]:
 
 
 def register_fonts() -> None:
+    bundled = Path(__file__).resolve().parent / "fonts"
     files = {
         "Sans": _first_existing([
             Path("/usr/share/fonts/truetype/macos/Inter-Regular.ttf"),
@@ -139,18 +142,11 @@ def register_fonts() -> None:
             Path("/usr/share/fonts/truetype/liberation/LiberationSans-BoldItalic.ttf"),
             Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
         ]),
-        "Serif-Italic": _first_existing([
-            Path("/usr/share/fonts/truetype/liberation/LiberationSerif-Italic.ttf"),
-            Path("/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"),
-        ]),
-        "Serif": _first_existing([
-            Path("/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf"),
-            Path("/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"),
-        ]),
-        "Serif-Bold": _first_existing([
-            Path("/usr/share/fonts/truetype/liberation/LiberationSerif-Bold.ttf"),
-            Path("/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"),
-        ]),
+        "Script": bundled / "GreatVibes-Regular.ttf",
+        "Display": bundled / "PlayfairDisplay-Black.ttf",
+        "Serif": bundled / "PlayfairDisplay-Regular.ttf",
+        "Serif-Bold": bundled / "PlayfairDisplay-Bold.ttf",
+        "Serif-Italic": bundled / "PlayfairDisplay-Italic.ttf",
     }
     for name, path in files.items():
         if not path.exists():
@@ -200,11 +196,11 @@ def chip_size(number: int, word: str) -> tuple[float, float, float, float, float
     """Width, height, number width, word width, word size."""
     word_size = 12
     num_size = 8
-    word_w = pdfmetrics.stringWidth(word, "Sans-Bold", word_size)
+    word_w = pdfmetrics.stringWidth(word, "Serif-Bold", word_size)
     num_w = pdfmetrics.stringWidth(f"({number})", "Sans-Bold", num_size)
     pad_x = 5.5
     gap = 3.5
-    ascent, descent = vertical_metrics("Sans-Bold", word_size)
+    ascent, descent = vertical_metrics("Serif-Bold", word_size)
     pad_y = 3.2
     width = pad_x + num_w + gap + word_w + pad_x
     height = pad_y + (ascent - descent) + pad_y
@@ -234,7 +230,7 @@ def draw_chip(c: canvas.Canvas, cx: float, cy: float, number: int, word: str) ->
     c.setFillColor(colors.white)
     c.setLineWidth(0.9)
     c.roundRect(left, bottom, width, height, 2.5, stroke=1, fill=1)
-    ascent, descent = vertical_metrics("Sans-Bold", word_size)
+    ascent, descent = vertical_metrics("Serif-Bold", word_size)
     word_baseline = cy - (ascent + descent) / 2
     num_ascent, num_descent = vertical_metrics("Sans-Bold", num_size)
     num_baseline = cy - (num_ascent + num_descent) / 2
@@ -243,7 +239,7 @@ def draw_chip(c: canvas.Canvas, cx: float, cy: float, number: int, word: str) ->
     c.setFillColor(colors.black)
     c.setFont("Sans-Bold", num_size)
     c.drawString(left + pad_x, num_baseline, f"({number})")
-    c.setFont("Sans-Bold", word_size)
+    c.setFont("Serif-Bold", word_size)
     c.drawString(left + pad_x + num_w + gap, word_baseline, word)
     c.restoreState()
     return left, bottom, left + width, bottom + height
@@ -267,63 +263,199 @@ def draw_line(c: canvas.Canvas, x0: float, x1: float, y: float,
     c.restoreState()
 
 
-def draw_frame(c: canvas.Canvas) -> None:
+def arch_box() -> dict[str, float]:
+    """Semicircular arch, the black-and-white reading of the invitation panel."""
+    side = mm(13)
+    base = mm(12)
+    crown_gap = mm(8)
+    width = PAGE_W - 2 * side
+    radius = width / 2
+    crown = PAGE_H - crown_gap
+    spring = crown - radius
+    return {
+        "x": side,
+        "base": base,
+        "width": width,
+        "radius": radius,
+        "crown": crown,
+        "spring": spring,
+        "cx": side + radius,
+    }
+
+
+def draw_arch(c: canvas.Canvas, box: dict[str, float], inset: float = 0, weight: float = 1.15) -> None:
+    x = box["x"] + inset
+    base = box["base"] + inset
+    radius = box["radius"] - inset
+    spring = box["spring"]
+    width = radius * 2
+    path = c.beginPath()
+    path.moveTo(x, base)
+    path.lineTo(x, spring)
+    path.arc(x, spring - radius, x + width, spring + radius, 180, -180)
+    path.lineTo(x + width, base)
+    path.close()
     c.saveState()
     c.setStrokeColor(colors.black)
-    c.setLineWidth(0.7)
-    inset = mm(11)
-    c.rect(inset, inset, PAGE_W - 2 * inset, PAGE_H - 2 * inset, stroke=1, fill=0)
+    c.setFillColor(colors.white)
+    c.setLineWidth(weight)
+    c.setLineJoin(0)
+    c.setLineCap(0)
+    c.drawPath(path, stroke=1, fill=0)
     c.restoreState()
+
+
+def draw_leaf(c: canvas.Canvas, x: float, y: float, angle: float, length: float, width: float) -> None:
+    """Slender outlined leaf. Angle is degrees, 0 points right, 90 points up."""
+    theta = math.radians(angle)
+    ca, sa = math.cos(theta), math.sin(theta)
+
+    def rot(along: float, across: float) -> tuple[float, float]:
+        return (x + along * ca - across * sa, y + along * sa + across * ca)
+
+    tip = rot(length, 0)
+    upper_a = rot(length * 0.30, width)
+    upper_b = rot(length * 0.74, width * 0.48)
+    lower_a = rot(length * 0.72, -width * 0.40)
+    lower_b = rot(length * 0.24, -width * 0.82)
+    path = c.beginPath()
+    path.moveTo(x, y)
+    path.curveTo(*upper_a, *upper_b, *tip)
+    path.curveTo(*lower_a, *lower_b, x, y)
+    c.saveState()
+    c.setStrokeColor(colors.black)
+    c.setFillColor(colors.white)
+    c.setLineWidth(0.75)
+    c.setLineJoin(1)
+    c.setLineCap(1)
+    c.drawPath(path, stroke=1, fill=1)
+    vein = rot(length * 0.9, 0)
+    c.setLineWidth(0.32)
+    c.line(x, y, *vein)
+    c.restoreState()
+
+
+def draw_stem(c: canvas.Canvas, points: list[tuple[float, float]]) -> None:
+    path = c.beginPath()
+    path.moveTo(*points[0])
+    for index in range(1, len(points)):
+        x0, y0 = points[index - 1]
+        x1, y1 = points[index]
+        path.curveTo(
+            x0 + (x1 - x0) * 0.45, y0 + (y1 - y0) * 0.05,
+            x1 - (x1 - x0) * 0.45, y1 - (y1 - y0) * 0.05,
+            x1, y1,
+        )
+    c.saveState()
+    c.setStrokeColor(colors.black)
+    c.setLineWidth(0.8)
+    c.setLineCap(1)
+    c.drawPath(path, stroke=1, fill=0)
+    c.restoreState()
+
+
+def from_top_mm(x_mm: float, y_mm: float) -> tuple[float, float]:
+    return mm(x_mm), PAGE_H - mm(y_mm)
+
+
+def draw_foliage(c: canvas.Canvas) -> None:
+    """Olive sprigs in the corners, in the same places as on the invitation."""
+    top_stem = [
+        from_top_mm(0.5, 3),
+        from_top_mm(9, 14),
+        from_top_mm(16, 28),
+        from_top_mm(10, 42),
+        from_top_mm(17, 54),
+    ]
+    top_leaves = [
+        # x, y from top, angle, length mm, width mm
+        (6, 9, -62, 16, 2.8),
+        (13, 18, 22, 14, 2.5),
+        (15, 28, -28, 16, 2.9),
+        (8, 38, -78, 15, 2.7),
+        (14, 48, -8, 13, 2.4),
+    ]
+    draw_stem(c, top_stem)
+    for leaf in top_leaves:
+        x, y, angle, length, width = leaf
+        px, py = from_top_mm(x, y)
+        draw_leaf(c, px, py, angle, mm(length), mm(width))
+
+    bottom_stem = [
+        (mm(209.5), mm(1.5)),
+        (mm(200), mm(10)),
+        (mm(193), mm(18)),
+        (mm(199), mm(26)),
+    ]
+    bottom_leaves = [
+        (204, 6, 125, 14, 2.6),
+        (197, 12, 58, 13, 2.4),
+        (191, 18, 145, 14, 2.6),
+        (200, 22, 95, 11, 2.2),
+    ]
+    draw_stem(c, bottom_stem)
+    for x, y, angle, length, width in bottom_leaves:
+        draw_leaf(c, mm(x), mm(y), angle, mm(length), mm(width))
 
 
 def make_sheet(path: Path, sheet_index: int, entries: list[tuple[int, str]]) -> None:
     c = canvas.Canvas(str(path), pagesize=A4)
     c.setTitle(f"Für Doro — Kennlernbogen {sheet_index + 1}")
     c.setAuthor("Geburtstagsspiel für Doro")
-    draw_frame(c)
 
-    left = mm(18)
-    right = PAGE_W - mm(18)
+    box = arch_box()
+    draw_arch(c, box, inset=0, weight=1.2)
+    draw_arch(c, box, inset=mm(2.3), weight=0.45)
+    draw_foliage(c)
+
+    inset = mm(9)
+    left = box["x"] + inset
+    right = box["x"] + box["width"] - inset
     width = right - left
-    center = PAGE_W / 2
+    center = box["cx"]
 
-    draw_tracked(c, "ZUM GEBURTSTAG", center, from_top(20.2), "Sans", 8, 2.15)
     c.setFillColor(colors.black)
-    c.setFont("Serif-Italic", 28)
-    c.drawCentredString(center, from_top(31.6), "Für Doro")
+    c.setFont("Script", 30)
+    c.drawCentredString(center, from_top(28), "Zum Geburtstag")
+
+    draw_tracked(c, "FÜR DORO", center, from_top(52), "Display", 32, 1.15)
+
+    c.setFont("Serif-Italic", 10)
+    c.drawCentredString(center, from_top(62.5), "Ein Bogen zum Kennenlernen")
+
+    c.setFont("Display", 15)
+    c.drawCentredString(center, from_top(74), PARTY_DATE)
 
     c.setStrokeColor(colors.black)
-    c.setLineWidth(0.6)
-    rule_w = mm(26)
-    c.line(center - rule_w / 2, from_top(35.6), center + rule_w / 2, from_top(35.6))
-
-    c.setFont("Sans", 9)
-    c.drawCentredString(center, from_top(40.4), "Ein Bogen zum Kennenlernen")
+    c.setLineWidth(0.5)
+    rule = mm(18)
+    c.line(center - rule, from_top(79.2), center + rule, from_top(79.2))
 
     style = ParagraphStyle(
         "instr",
-        fontName="Sans",
-        fontSize=8.3,
+        fontName="Serif",
+        fontSize=8.4,
         leading=11.0,
         textColor=colors.black,
-        alignment=TA_LEFT,
+        alignment=TA_CENTER,
     )
     paragraph = Paragraph(INSTRUCTION, style)
-    _instr_w, instr_h = paragraph.wrap(width, 220)
-    instr_top = from_top(46.2)
-    paragraph.drawOn(c, left, instr_top - instr_h)
+    _instr_w, instr_h = paragraph.wrap(width - mm(4), 240)
+    instr_top = from_top(84)
+    paragraph.drawOn(c, left + mm(2), instr_top - instr_h)
 
-    name_y = instr_top - instr_h - mm(8.2)
+    name_y = instr_top - instr_h - mm(8)
     c.setFillColor(colors.black)
-    c.setFont("Sans", 11)
+    c.setFont("Serif-Italic", 11)
     label = "Ich heiße"
     c.drawString(left, name_y, label)
-    label_w = c.stringWidth(label, "Sans", 11)
+    label_w = c.stringWidth(label, "Serif-Italic", 11)
     draw_line(c, left + label_w + 8, right, name_y - 1.2)
 
-    footer_rule_y = mm(18.2)
-    block_top = name_y - mm(7.2)
-    block_bottom = footer_rule_y + mm(5.5)
+    footer_y = box["base"] + mm(6.5)
+    block_top = name_y - mm(6)
+    # Room for the script signature above the footer line.
+    block_bottom = footer_y + mm(15)
     section_h = (block_top - block_bottom) / len(QUESTIONS)
 
     for q, (question, (number, word)) in enumerate(zip(QUESTIONS, entries)):
@@ -331,41 +463,41 @@ def make_sheet(path: Path, sheet_index: int, entries: list[tuple[int, str]]) -> 
         sec_bottom = sec_top - section_h
         if q > 0:
             c.setStrokeColor(colors.black)
-            c.setLineWidth(0.35)
+            c.setLineWidth(0.3)
             c.line(left, sec_top, right, sec_top)
 
-        q_baseline = sec_top - mm(6.4)
+        q_baseline = sec_top - mm(5.6)
         c.setFillColor(colors.black)
-        c.setFont("Sans-Bold", 11)
+        c.setFont("Display", 11)
         q_label = str(q + 1)
         c.drawString(left, q_baseline, q_label)
-        num_w = c.stringWidth(q_label, "Sans-Bold", 11)
-        q_x = left + num_w + 8
-        c.setFont("Sans", 11.5)
-        if c.stringWidth(question, "Sans", 11.5) > right - q_x:
+        num_w = c.stringWidth(q_label, "Display", 11)
+        q_x = left + num_w + 7
+        c.setFont("Serif", 11)
+        if c.stringWidth(question, "Serif", 11) > right - q_x:
             raise SystemExit(f"Frage {q + 1} ist zu lang für die Zeile: {question}")
         c.drawString(q_x, q_baseline, question)
 
-        line_top = q_baseline - mm(8.6)
-        line_bottom = sec_bottom + mm(5.2)
-        gap = (line_top - line_bottom) / 2
-        baselines = [line_top - i * gap for i in range(3)]
-
+        # Two writing lines: the arch needs the upper page, and two lines
+        # still leave room to write around the printed word.
+        line_top = q_baseline - mm(8.2)
+        line_bottom = sec_bottom + mm(4.2)
+        baselines = [line_top, line_bottom]
         cx = chip_center(left, right, number, word, ANCHORS[q])
         bounds = draw_chip(c, cx, baselines[0], number, word)
         draw_line(c, left, right, baselines[0], bounds)
-        for y in baselines[1:]:
-            draw_line(c, left, right, y)
+        draw_line(c, left, right, baselines[1])
 
-    c.setStrokeColor(colors.black)
-    c.setLineWidth(0.45)
-    c.line(left, footer_rule_y, right, footer_rule_y)
-    first, last = entries[0][0], entries[-1][0]
     c.setFillColor(colors.black)
-    c.setFont("Sans", 8)
-    foot_y = mm(13.6)
-    c.drawString(left, foot_y, f"Bogen {sheet_index + 1} von {SHEET_COUNT}")
-    c.drawRightString(right, foot_y, f"Wörter {first}–{last}")
+    first, last = entries[0][0], entries[-1][0]
+    c.setFont("Script", 15)
+    c.drawCentredString(center, footer_y + mm(8), "Doro")
+    c.setFont("Serif", 8)
+    c.drawCentredString(
+        center,
+        footer_y,
+        f"Bogen {sheet_index + 1} von {SHEET_COUNT}    ·    Wörter {first}–{last}",
+    )
 
     c.showPage()
     c.save()
@@ -381,12 +513,8 @@ def make_moderation(path: Path) -> None:
     width = right - left
     center = PAGE_W / 2
 
-    title = ParagraphStyle(
-        "title", fontName="Serif-Italic", fontSize=22, leading=26,
-        alignment=TA_CENTER, textColor=colors.black,
-    )
     sub = ParagraphStyle(
-        "sub", fontName="Sans", fontSize=9, leading=12,
+        "sub", fontName="Serif-Italic", fontSize=9, leading=12,
         alignment=TA_CENTER, textColor=colors.black,
     )
     head = ParagraphStyle(
@@ -399,7 +527,7 @@ def make_moderation(path: Path) -> None:
         leftIndent=13, firstLineIndent=-13,
     )
     quote = ParagraphStyle(
-        "quote", fontName="Serif", fontSize=11.5, leading=16.4,
+        "quote", fontName="Serif", fontSize=11, leading=15.4,
         alignment=TA_LEFT, textColor=colors.black,
     )
     note = ParagraphStyle(
@@ -407,13 +535,27 @@ def make_moderation(path: Path) -> None:
         alignment=TA_LEFT, textColor=colors.black,
     )
 
-    # Kicker is drawn by hand so the letter-spacing matches the Bögen.
-    y = from_top(16)
-    draw_tracked(c, "NICHT AUSLEGEN", center, y - 8, "Sans-Bold", 8, 1.6)
-    y -= 22
+    for leaf in (
+        (8, 10, -40, 14, 2.5),
+        (14, 18, 20, 12, 2.2),
+        (6, 22, -75, 13, 2.3),
+    ):
+        px, py = from_top_mm(leaf[0], leaf[1])
+        draw_leaf(c, px, py, leaf[2], mm(leaf[3]), mm(leaf[4]))
+    for leaf_x, leaf_y, angle, length, leaf_w in (
+        (200, 8, 115, 13, 2.4),
+        (190, 14, 50, 12, 2.2),
+        (196, 20, 150, 11, 2.1),
+    ):
+        draw_leaf(c, mm(leaf_x), mm(leaf_y), angle, mm(length), mm(leaf_w))
+
+    c.setFillColor(colors.black)
+    c.setFont("Script", 20)
+    c.drawCentredString(center, from_top(16), "Nicht auslegen")
+    draw_tracked(c, "FÜR DORO", center, from_top(28), "Display", 22, 0.9)
+    y = from_top(32)
 
     flow = [
-        Paragraph("Für Doro", title),
         Paragraph("Moderationsblatt zur Laudatio", sub),
         Paragraph("So spielt ihr", head),
         Paragraph("<b>1</b>  Die zehn Bögen verdeckt auslegen. Jede Person nimmt einen. Dieses Blatt bleibt bei dir.", step),
