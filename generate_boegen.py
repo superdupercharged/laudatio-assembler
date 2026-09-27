@@ -8,6 +8,8 @@ von 1 bis 50, ergibt sich eine Laudatio.
 
 Die Wörterliste unten ist die einzige Quelle. Es müssen genau
 10 Bögen × 5 Fragen = 50 Wörter sein, in der Vorlesereihenfolge.
+Die Wörter werden round-robin auf die Bögen verteilt: Wort 1 auf Bogen 1,
+Wort 2 auf Bogen 2, …, Wort 11 wieder auf Bogen 1.
 Satzzeichen gehören zum Wort, damit beim Vorlesen Punkt und Komma sitzen.
 
 Aufruf:
@@ -101,6 +103,12 @@ def laudatio_text() -> str:
 
 
 def sheets() -> list[list[tuple[int, str]]]:
+    """Wörter round-robin auf die Bögen verteilen.
+
+    Wort 1 → Bogen 1, Wort 2 → Bogen 2, …, Wort 10 → Bogen 10,
+    Wort 11 → wieder Bogen 1, und so weiter. Jeder Bogen erhält damit
+    fünf Wörter mit den Nummern sheet, sheet+10, sheet+20, …
+    """
     expected = SHEET_COUNT * len(QUESTIONS)
     if len(WORDS) != expected:
         raise SystemExit(
@@ -113,7 +121,7 @@ def sheets() -> list[list[tuple[int, str]]]:
     for sheet in range(SHEET_COUNT):
         chunk = []
         for question in range(len(QUESTIONS)):
-            index = sheet * len(QUESTIONS) + question
+            index = sheet + question * SHEET_COUNT
             chunk.append((index + 1, WORDS[index]))
         built.append(chunk)
     return built
@@ -489,14 +497,14 @@ def make_sheet(path: Path, sheet_index: int, entries: list[tuple[int, str]]) -> 
         draw_line(c, left, right, baselines[1])
 
     c.setFillColor(colors.black)
-    first, last = entries[0][0], entries[-1][0]
+    numbers = ", ".join(str(number) for number, _word in entries)
     c.setFont("Script", 15)
     c.drawCentredString(center, footer_y + mm(8), "Doro")
     c.setFont("Serif", 8)
     c.drawCentredString(
         center,
         footer_y,
-        f"Bogen {sheet_index + 1} von {SHEET_COUNT}    ·    Wörter {first}–{last}",
+        f"Bogen {sheet_index + 1} von {SHEET_COUNT}    ·    Wörter {numbers}",
     )
 
     c.showPage()
@@ -566,8 +574,9 @@ def make_moderation(path: Path) -> None:
         Paragraph("Die Laudatio", head),
         Paragraph(laudatio_text(), quote),
         Paragraph(
-            "50 Wörter, zehn Bögen, auf jedem Bogen fünf Wörter in der richtigen Reihenfolge. "
-            "Bogen 1 trägt die Wörter 1 bis 5, Bogen 2 die Wörter 6 bis 10, und so weiter.",
+            "50 Wörter, zehn Bögen, auf jedem Bogen fünf Wörter. "
+            "Wort 1 liegt auf Bogen 1, Wort 2 auf Bogen 2, …, Wort 10 auf Bogen 10; "
+            "Wort 11 wieder auf Bogen 1, und so weiter.",
             note,
         ),
         Paragraph("Welches Wort auf welchem Bogen liegt", head),

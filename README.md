@@ -20,4 +20,4 @@ pip install -r requirements.txt
 python3 generate_boegen.py
 ```
 
-Die 50 Wörter stehen oben in `generate_boegen.py`. Satzzeichen gehören zum Wort, die Reihenfolge ist die Vorlesereihenfolge.
+Die 50 Wörter stehen oben in `generate_boegen.py`. Satzzeichen gehören zum Wort, die Reihenfolge ist die Vorlesereihenfolge. Die Wörter werden round-robin auf die zehn Bögen verteilt (Wort 1 → Bogen 1, Wort 2 → Bogen 2, …, Wort 11 → wieder Bogen 1).
